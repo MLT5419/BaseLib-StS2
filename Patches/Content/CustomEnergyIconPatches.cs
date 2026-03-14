@@ -9,7 +9,7 @@ namespace BaseLib.Patches.Content;
 
 public class CustomEnergyIconPatches {
     public const char Delimiter = '∴';
-    public static string GetEnergyColorName(ModelId id) => id.Category + CustomEnergyIconPatches.Delimiter + id.Entry;
+    public static string GetEnergyColorName(ModelId id) => id.Category + Delimiter + id.Entry;
 
     [HarmonyPatch(typeof(EnergyIconHelper), nameof(EnergyIconHelper.GetPath), typeof(string))]
     private static class IconPatch {
@@ -23,7 +23,7 @@ public class CustomEnergyIconPatches {
         }
     }
 
-    [HarmonyPatch(typeof(EnergyIconsFormatter), nameof(EnergyIconsFormatter.TryEvaluateFormat))]
+    [HarmonyPatch(typeof(EnergyIconsFormatter), "TryEvaluateFormat")]
     private static class TextIconPatch {
         static List<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
             return new InstructionPatcher(instructions)
