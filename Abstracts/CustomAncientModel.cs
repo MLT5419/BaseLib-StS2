@@ -1,10 +1,10 @@
-﻿using BaseLib.Patches.Content;
+﻿using System.Text;
+using BaseLib.Patches.Content;
 using BaseLib.Utils;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Ancients;
 using MegaCrit.Sts2.Core.Events;
-using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Runs;
 
@@ -13,10 +13,12 @@ namespace BaseLib.Abstracts;
 public abstract class CustomAncientModel : AncientEventModel, ICustomModel
 {
     //Suggested overrides: ButtonColor, DialogueColor
+    private readonly bool _logDialogueLoad;
     
-    public CustomAncientModel(bool autoAdd = true)
+    public CustomAncientModel(bool autoAdd = true, bool logDialogueLoad = false)
     {
         if (autoAdd) CustomContentDictionary.AddAncient(this);
+        _logDialogueLoad = logDialogueLoad;
     }
 
     /// <summary>
@@ -104,84 +106,30 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel
 
     /****************** Localization ******************/
     private string FirstVisit => $"{Id.Entry}.talk.firstvisitEver.0-0.ancient";
-    private string BaseLocKeyForId(string id) => $"{Id.Entry}.talk.{id}.";
-
-    private static string SfxPath(string dialogueLoc) =>
-        LocString.GetIfExists("ancients", dialogueLoc + ".sfx")?.GetRawText() ?? "";
     
     protected override AncientDialogueSet DefineDialogues()
     {
-        AncientDialogue firstVisit = new(SfxPath(FirstVisit));
+        StringBuilder? log = _logDialogueLoad ? new($"Prepping dialogue for ancient '{Id.Entry}'") : null;
+        string sfxPath;
+        AncientDialogue firstVisit = new(sfxPath = AncientDialogueUtil.SfxPath(FirstVisit));
+        log?.AppendLine($"First visit with sfx '{sfxPath}'");
 
         Dictionary<string, IReadOnlyList<AncientDialogue>> characterDialogues = [];
         
-        foreach (CharacterModel character in ModelDb.AllCharacters)
+        foreach (var character in ModelDb.AllCharacters)
         {
-            var baseKey = BaseLocKeyForId(character.Id.Entry);
-            characterDialogues[baseKey] = GetDialoguesForKey(baseKey);
+            var baseKey = AncientDialogueUtil.BaseLocKey(Id.Entry, character.Id.Entry);
+            characterDialogues[character.Id.Entry] = AncientDialogueUtil.GetDialoguesForKey("ancients", baseKey, log);
         }
         
-        return new AncientDialogueSet
+        var dialogueSet = new AncientDialogueSet
         {
             FirstVisitEverDialogue = firstVisit,
             CharacterDialogues = characterDialogues,
-            AgnosticDialogues = GetDialoguesForKey("ANY")
+            AgnosticDialogues = AncientDialogueUtil.GetDialoguesForKey("ancients", "ANY", log)
         };
-    }
-
-    private IReadOnlyList<AncientDialogue> GetDialoguesForKey(string baseKey)
-    {
-        List<AncientDialogue> dialogues = [];
-        
-        int index = 0;
-        while (DialogueExists(baseKey, index))
-        {
-            List<string> sfxPaths = [];
-
-            var line = ExistingLine(baseKey, index, sfxPaths.Count);
-
-            while (line != null)
-            {
-                sfxPaths.Add(SfxPath(line));
-                line = ExistingLine(baseKey, index, sfxPaths.Count);
-            }
-            
-            dialogues.Add(new AncientDialogue(sfxPaths.ToArray()));    
-            ++index;
-        }
-
-        return dialogues;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="baseKey">first section of key ending with a '.'</param>
-    /// <param name="index">index of conversation</param>
-    /// <returns></returns>
-    private static bool DialogueExists(string baseKey, int index)
-    {
-        return LocString.Exists("ancients", $"{baseKey}{index}-0.ancient") ||
-               LocString.Exists("ancients", $"{baseKey}{index}-0r.ancient") ||
-               LocString.Exists("ancients", $"{baseKey}{index}-0.char") ||
-               LocString.Exists("ancients", $"{baseKey}{index}-0r.char");
-    }
-
-    private static string? ExistingLine(string baseKey, int dialogueIndex, int lineIndex)
-    {
-        string locEntry = $"{baseKey}{dialogueIndex}-{lineIndex}r.ancient";
-        if (LocString.Exists("ancients", locEntry)) return locEntry;
-        
-        locEntry = $"{baseKey}{dialogueIndex}-{lineIndex}r.char";
-        if (LocString.Exists("ancients", locEntry)) return locEntry;
-        
-        locEntry = $"{baseKey}{dialogueIndex}-{lineIndex}.ancient";
-        if (LocString.Exists("ancients", locEntry)) return locEntry;
-        
-        locEntry = $"{baseKey}{dialogueIndex}-{lineIndex}.char";
-        if (LocString.Exists("ancients", locEntry)) return locEntry;
-
-        return null;
+        if (log != null) MainFile.Logger.Info(log.ToString());
+        return dialogueSet;
     }
 }
 
