@@ -9,10 +9,12 @@ namespace BaseLib.Patches.Hooks;
 
 /// <summary>
 /// IHealAmountModifier.ModifyHealAdditive() -> AbstractModel.ModifyHealAmount() -> IHealAmountModifier.ModifyHealMultiplicative()
+/// reserve AbstractModel.ModifyHealAmount() in the process for compatibility
 /// </summary>
 [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyHealAmount))]
 public static class ModifyHealAmountPatches
 {
+    [HarmonyPrefix]
     static void Prefix(IRunState runState, CombatState? combatState, Creature creature, ref decimal amount)
     {
         decimal num = amount;
@@ -20,12 +22,13 @@ public static class ModifyHealAmountPatches
         foreach (var item in runState.IterateHookListeners(combatState))
         {
             if (item is IHealAmountModifier mod)
-                num += mod.ModifyHealAdditive(creature, num);
+                num += mod.ModifyHealAdditive(creature, amount); // pass the amount before any addition
         }
 
         amount = num;
     }
 
+    [HarmonyPostfix]
     static void Postfix(IRunState runState, CombatState? combatState, Creature creature, ref decimal __result)
     {
         decimal num = __result;
@@ -33,7 +36,7 @@ public static class ModifyHealAmountPatches
         foreach (var item in runState.IterateHookListeners(combatState))
         {
             if (item is IHealAmountModifier mod)
-                num *= mod.ModifyHealMultiplicative(creature, num);
+                num *= mod.ModifyHealMultiplicative(creature, __result); // pass the amount before any multiplication
         }
 
         __result = Math.Max(0m, num);
