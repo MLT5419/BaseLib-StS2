@@ -12,72 +12,17 @@ public class SimpleModConfig : ModConfig
     // to the raw Create*Control methods from ModConfig), without an auto-generated UI.
     public override void SetupConfigUI(Control optionContainer)
     {
-        VBoxContainer options = new();
-
         MainFile.Logger.Info($"Setting up SimpleModConfig {GetType().FullName}");
-        
+
+        VBoxContainer options = new();
         options.Size = optionContainer.Size;
         options.AddThemeConstantOverride("separation", 8);
-
-        // Add "margin" to the top, to keep the edge-element distance same as on the left and right
-        var spacer = new Control();
-        spacer.CustomMinimumSize = new Vector2(0, 16);
-        optionContainer.AddChild(spacer);
-
         optionContainer.AddChild(options);
 
-        Control? currentSetting = null;
-        string? currentSection = null;
+        // Add "margin" to the top, to keep the edge-element distance same as on the left and right
+        options.AddChild(new Control { CustomMinimumSize = new Vector2(0, 16) });
 
-        var properties = ConfigProperties.ToArray();
-        for (var i = 0; i < properties.Length; i++)
-        {
-            var property = properties[i];
-            var nextProperty = i < properties.Length - 1 ? properties[i + 1] : null;
-
-            // Create a section header if this property starts a new section
-            var sectionName = property.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
-            if (sectionName != null && sectionName != currentSection)
-            {
-                currentSection = sectionName;
-                var isFirstChild = options.GetChildCount() == 0;
-                options.AddChild(CreateSectionHeader(currentSection, alignToTop: isFirstChild));
-            }
-
-            // Generate the option row and set up focus handling
-            try
-            {
-                var newRow = GenerateOptionFromProperty(property);
-                options.AddChild(newRow);
-
-                var previousSetting = currentSetting;
-                currentSetting = newRow.SettingControl;
-
-                if (previousSetting != null)
-                {
-                    NodePath path = currentSetting.GetPathTo(previousSetting);
-                    currentSetting.FocusNeighborLeft ??= path;
-                    currentSetting.FocusNeighborTop ??= path;
-
-                    path = previousSetting.GetPathTo(currentSetting);
-                    previousSetting.FocusNeighborRight ??= path;
-                    previousSetting.FocusNeighborBottom ??= path;
-                }
-            }
-            catch (NotSupportedException ex)
-            {
-                MainFile.Logger.Error($"Not creating UI for unsupported property '{property.Name}': {ex.Message}");
-                continue;
-            }
-
-            // Add a divider unless the next property starts a new section (or there is no next)
-            var nextSectionName = nextProperty?.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
-            var nextIsSameSection = nextSectionName == null || nextSectionName == currentSection;
-            if (nextProperty != null && nextIsSameSection)
-            {
-                options.AddChild(CreateDividerControl());
-            }
-        }
+        GenerateOptionsForAllProperties(options);
     }
 
     // Create a standard, layout-ready toggle
@@ -135,5 +80,61 @@ public class SimpleModConfig : ModConfig
         else throw new NotSupportedException($"Type {propertyType.FullName} is not supported by SimpleModConfig.");
 
         return optionRow;
+    }
+
+    protected void GenerateOptionsForAllProperties(Control targetContainer)
+    {
+        Control? currentSetting = null;
+        string? currentSection = null;
+
+        var properties = ConfigProperties.ToArray();
+        for (var i = 0; i < properties.Length; i++)
+        {
+            var property = properties[i];
+            var nextProperty = i < properties.Length - 1 ? properties[i + 1] : null;
+
+            // Create a section header if this property starts a new section
+            var sectionName = property.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
+            if (sectionName != null && sectionName != currentSection)
+            {
+                currentSection = sectionName;
+                var isFirstChild = targetContainer.GetChildCount() == 0;
+                targetContainer.AddChild(CreateSectionHeader(currentSection, alignToTop: isFirstChild));
+            }
+
+            // Generate the option row and set up focus handling
+            try
+            {
+                var newRow = GenerateOptionFromProperty(property);
+                targetContainer.AddChild(newRow);
+
+                var previousSetting = currentSetting;
+                currentSetting = newRow.SettingControl;
+
+                if (previousSetting != null)
+                {
+                    NodePath path = currentSetting.GetPathTo(previousSetting);
+                    currentSetting.FocusNeighborLeft ??= path;
+                    currentSetting.FocusNeighborTop ??= path;
+
+                    path = previousSetting.GetPathTo(currentSetting);
+                    previousSetting.FocusNeighborRight ??= path;
+                    previousSetting.FocusNeighborBottom ??= path;
+                }
+            }
+            catch (NotSupportedException ex)
+            {
+                MainFile.Logger.Error($"Not creating UI for unsupported property '{property.Name}': {ex.Message}");
+                continue;
+            }
+
+            // Add a divider unless the next property starts a new section (or there is no next)
+            var nextSectionName = nextProperty?.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
+            var nextIsSameSection = nextSectionName == null || nextSectionName == currentSection;
+            if (nextProperty != null && nextIsSameSection)
+            {
+                targetContainer.AddChild(CreateDividerControl());
+            }
+        }
     }
 }
