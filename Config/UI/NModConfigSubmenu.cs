@@ -39,7 +39,11 @@ public partial class NModConfigSubmenu : NSubmenu
     private Control _contentPanel;
     private MegaRichTextLabel _modTitle;
     private NConfigButton? _opener;
-    private Tween? _fadeTween;
+    private Tween? _fadeInTween;
+
+    private ModConfig? _currentConfig;
+    private double _saveTimer = -1;
+    private const double AutosaveDelay = 5;
 
     private const float ContentWidth = 1012f; // Same as the base game
     private const float ClipperTopOffset = 187f;
@@ -149,11 +153,10 @@ public partial class NModConfigSubmenu : NSubmenu
         scrollbar.OffsetLeft = ContentWidth / 2 + gap;
         scrollbar.OffsetRight = ContentWidth / 2 + gap + width;
 
-        scrollbar.OffsetTop = 219f;
+        scrollbar.OffsetTop = ClipperTopOffset + 32f;
         scrollbar.OffsetBottom = -64f;
 
         _scrollContainer.AddChild(scrollbar);
-        scrollbar.Owner = _scrollContainer;
         _scrollContainer.AddChild(mask);
 
         // Autosize is on, but we need a value here
@@ -185,6 +188,8 @@ public partial class NModConfigSubmenu : NSubmenu
 
     public void LoadModConfig(ModConfig config, NConfigButton opener)
     {
+        if (_currentConfig != null) _currentConfig.ConfigChanged -= OnConfigChanged;
+        _currentConfig = config;
         _opener = opener;
         _optionContainer.FreeChildren();
         _optionContainer.AddThemeConstantOverride("separation", 8);
@@ -192,10 +197,13 @@ public partial class NModConfigSubmenu : NSubmenu
         try
         {
             config.SetupConfigUI(_optionContainer);
-
             SetModTitle(config);
+            config.ConfigChanged += OnConfigChanged;
+
             _scrollContainer.DisableScrollingIfContentFits();
+            _scrollContainer.InstantlyScrollToTop();
             RefreshSize();
+
             ModConfig.ShowAndClearPendingErrors();
 
             // Note: TryGrabFocus returns if a controller isn't being used
@@ -247,11 +255,12 @@ public partial class NModConfigSubmenu : NSubmenu
     protected override void OnSubmenuShown()
     {
         base.OnSubmenuShown();
-        _scrollContainer.InstantlyScrollToTop();
 
-        _fadeTween?.Kill();
-        _fadeTween = CreateTween().SetParallel();
-        _fadeTween.TweenProperty(_contentPanel, "modulate", Colors.White, 0.5f)
+        _saveTimer = -1;
+
+        _fadeInTween?.Kill();
+        _fadeInTween = CreateTween().SetParallel();
+        _fadeInTween.TweenProperty(_contentPanel, "modulate", Colors.White, 0.5f)
             .From(new Color(0, 0, 0, 0))
             .SetEase(Tween.EaseType.Out)
             .SetTrans(Tween.TransitionType.Cubic);
@@ -259,9 +268,16 @@ public partial class NModConfigSubmenu : NSubmenu
 
     protected override void OnSubmenuHidden()
     {
+        if (_currentConfig != null) _currentConfig.ConfigChanged -= OnConfigChanged;
         if (_opener != null) _opener.IsConfigOpen = false;
+        SaveCurrentConfig();
 
         base.OnSubmenuHidden();
+    }
+
+    private void OnConfigChanged(object? sender, EventArgs e)
+    {
+        _saveTimer = AutosaveDelay;
     }
 
     private static Control? FindFirstFocusable(Node parent)
@@ -277,5 +293,22 @@ public partial class NModConfigSubmenu : NSubmenu
         }
 
         return null;
+    }
+
+    public override void _Process(double delta)
+    {
+        base._Process(delta);
+        if (_saveTimer <= 0) return;
+        _saveTimer -= delta;
+        if (_saveTimer <= 0)
+        {
+            SaveCurrentConfig();
+        }
+    }
+
+    private void SaveCurrentConfig()
+    {
+        _currentConfig?.Save();
+        _saveTimer = -1;
     }
 }

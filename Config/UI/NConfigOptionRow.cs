@@ -28,8 +28,8 @@ public partial class NConfigOptionRow : MarginContainer
         Name = property.Name;
         SettingControl = settingControl;
 
-        AddThemeConstantOverride("margin_left", 24);
-        AddThemeConstantOverride("margin_right", 24);
+        AddThemeConstantOverride("margin_left", 12);
+        AddThemeConstantOverride("margin_right", 12);
         MouseFilter = MouseFilterEnum.Pass;
         FocusMode = FocusModeEnum.None;
         CustomMinimumSize = new Vector2(0, 64);
