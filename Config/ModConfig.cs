@@ -47,6 +47,8 @@ public abstract partial class ModConfig
 
     protected readonly List<PropertyInfo> ConfigProperties = [];
 
+    private static readonly FieldInfo _BodyLable =  AccessTools.Field(typeof(NVerticalPopup), "BodyLabel");
+
     public static class ModConfigLogger
     {
         public static List<string> PendingUserMessages { get; } = [];
@@ -406,7 +408,10 @@ public abstract partial class ModConfig
 
         var vertPopup = errorPopup.GetNodeOrNull<NVerticalPopup>("VerticalPopup");
         if (vertPopup == null) return;
-        vertPopup.BodyLabel.AddThemeFontSizeOverrideAll(22);
+
+        if (_BodyLable.GetValue(vertPopup) is not MegaRichTextLabel bodyLabel)
+            return;
+        bodyLabel?.AddThemeFontSizeOverrideAll(22);
 
         pendingMessages.Clear();
     }

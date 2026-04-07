@@ -11,6 +11,10 @@ namespace BaseLib.Patches.Hooks;
 /// IHealAmountModifier.ModifyHealAdditive() -> AbstractModel.ModifyHealAmount() -> IHealAmountModifier.ModifyHealMultiplicative()
 /// reserve AbstractModel.ModifyHealAmount() in the process for compatibility
 /// </summary>
+
+// TODO: The method Hook.ModifyHealAmount is not found in my environment. I'm not sure if it really doesn't exist (renamed with version updates) or if it's a problem with my personal environment. I assume there might be an issue with this part due to updates, but I'm not certain about the author's specific requirements here, so I commented it out instead of fixing it.
+
+/**
 [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyHealAmount))]
 public static class ModifyHealAmountPatches
 {
@@ -42,3 +46,4 @@ public static class ModifyHealAmountPatches
         __result = Math.Max(0m, num);
     }
 }
+*/
