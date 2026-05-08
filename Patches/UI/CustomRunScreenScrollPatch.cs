@@ -18,6 +18,12 @@ internal static class CustomRunScreenScrollPatch
         var buttons = container.GetChildren().OfType<NCharacterSelectButton>().ToList();
         if (buttons.Count <= 5) return;
 
+        foreach (var button in buttons)
+        {
+            //Improves drag scrolling
+            button.MouseFilter = Control.MouseFilterEnum.Pass;
+        }
+
         var parent = container.GetParent();
         var index = container.GetIndex();
 
